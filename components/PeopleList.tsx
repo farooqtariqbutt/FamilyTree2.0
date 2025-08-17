@@ -63,9 +63,12 @@ const PeopleList: React.FC<PeopleListProps> = ({ openPersonForm }) => {
     const sortedAndFilteredPeople = useMemo(() => {
         let sortableItems = [...people];
         if (searchTerm) {
-            sortableItems = sortableItems.filter(p =>
-                getFullName(p).toLowerCase().includes(searchTerm.toLowerCase())
-            );
+            sortableItems = sortableItems.filter(p => {
+                const term = searchTerm.toLowerCase();
+                const fullName = getFullName(p).toLowerCase();
+                const nickName = p.nickName?.toLowerCase() || '';
+                return fullName.includes(term) || nickName.includes(term);
+            });
         }
         sortableItems.sort((a, b) => {
             const valA = a[sortConfig.key];
