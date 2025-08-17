@@ -21,6 +21,7 @@ export interface Marriage {
 
 export interface Person {
     id: string;
+    title?: string;
     firstName: string;
     lastName?: string;
     familyCast?: string;
