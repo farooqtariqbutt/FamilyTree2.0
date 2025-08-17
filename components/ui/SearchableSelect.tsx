@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { Person } from '../../types.ts';
 import { UserIcon } from './Icons.tsx';
@@ -32,9 +33,12 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
     };
   }, [wrapperRef]);
   
-  const filteredOptions = options.filter(opt =>
-    getFullName(opt).toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOptions = options.filter(opt => {
+    const term = searchTerm.toLowerCase();
+    const fullName = getFullName(opt).toLowerCase();
+    const nickName = opt.nickName?.toLowerCase() || '';
+    return fullName.includes(term) || nickName.includes(term);
+  });
 
   const handleSelect = (optionId: string) => {
     onChange(optionId);
