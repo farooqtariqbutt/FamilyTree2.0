@@ -28,8 +28,9 @@ export default function PersonForm({ isOpen, onClose, personToEdit, newPersonTem
   const [imageFilesToProcess, setImageFilesToProcess] = useState<File[]>([]);
 
   const initialFormState = {
+    title: '',
     firstName: '',
-    lastName: '',
+    nickName: '',
     familyCast: '',
     gender: Gender.Male,
     parentIds: [],
@@ -160,7 +161,7 @@ export default function PersonForm({ isOpen, onClose, personToEdit, newPersonTem
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.firstName) {
-      alert('First Name is required.');
+      alert('Name is required.');
       return;
     }
     if (personToEdit) {
@@ -214,9 +215,10 @@ export default function PersonForm({ isOpen, onClose, personToEdit, newPersonTem
         {/* Basic Info */}
         <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Personal Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Input label="First Name" name="firstName" value={formData.firstName || ''} onChange={handleChange} required />
-                <Input label="Last Name" name="lastName" value={formData.lastName || ''} onChange={handleChange} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input label="Title" name="title" value={formData.title || ''} onChange={handleChange} />
+                <Input label={<>Name<span className="text-red-500 ml-1">*</span></>} name="firstName" value={formData.firstName || ''} onChange={handleChange} required />
+                <Input label="Nick Name" name="nickName" value={formData.nickName || ''} onChange={handleChange} />
                 <Input label="Family Cast" name="familyCast" value={formData.familyCast || ''} onChange={handleChange} />
             </div>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
