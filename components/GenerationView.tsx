@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useRef, useLayoutEffect } from 'react';
 import { useFamilyTreeContext } from '../hooks/useFamilyTree.ts';
 import type { Person } from '../types.ts';
