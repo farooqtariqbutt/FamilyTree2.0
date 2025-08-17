@@ -22,8 +22,8 @@ export interface Marriage {
 export interface Person {
     id: string;
     title?: string;
-    firstName: string;
-    lastName?: string;
+    firstName: string; // Corresponds to "Name" in the UI
+    nickName?: string;
     familyCast?: string;
     gender: Gender;
     birthDate?: string;
