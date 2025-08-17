@@ -1,10 +1,11 @@
+
 import type { Person } from '../types.ts';
 
 export const getFullName = (person?: Partial<Person> | null): string => {
   if (!person) {
     return '';
   }
-  return [person.title, person.firstName, person.lastName, person.familyCast]
+  return [person.title, person.firstName, person.familyCast]
     .filter(Boolean)
     .join(' ');
 };
