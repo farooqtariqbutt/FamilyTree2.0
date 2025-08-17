@@ -39,7 +39,9 @@ export const parseGedcom = (gedcomString: string): Person[] => {
                 if (tag === 'NAME') {
                     const nameParts = value.split('/');
                     currentIndi.firstName = nameParts[0].trim();
-                    currentIndi.lastName = nameParts[1].trim();
+                    if (nameParts[1]) {
+                        currentIndi.familyCast = nameParts[1].trim();
+                    }
                 } else if (tag === 'SEX') {
                     currentIndi.gender = value === 'M' ? Gender.Male : (value === 'F' ? Gender.Female : Gender.Other);
                 } else if (tag === 'BIRT') {
@@ -164,7 +166,7 @@ export const exportToGedcom = (people: Person[]): string => {
     // Write INDI records
     people.forEach(person => {
         gedcomString += `0 ${personToGedcomId[person.id]} INDI\n`;
-        const surname = [person.lastName, person.familyCast].filter(Boolean).join(' ');
+        const surname = person.familyCast || '';
         gedcomString += `1 NAME ${person.firstName || ''} /${surname}/\n`;
         if (person.gender) {
             gedcomString += `1 SEX ${person.gender === Gender.Male ? 'M' : person.gender === Gender.Female ? 'F' : 'O'}\n`;
