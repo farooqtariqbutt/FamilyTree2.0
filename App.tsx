@@ -29,12 +29,29 @@ const App = () => {
   const [personToEdit, setPersonToEdit] = useState<Person | undefined>();
   const [newPersonTemplate, setNewPersonTemplate] = useState<Partial<Person> | undefined>();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showAdvancedFeatures, setShowAdvancedFeatures] = useState(false);
   
   const { isLoading, trees, activeTreeId, createNewTree, switchTree, deleteTree, importGedcom, exportGedcom, backupActiveTree, importBackup } = familyTree;
 
   useEffect(() => {
     const isDark = localStorage.getItem('darkMode') === 'true';
     setIsDarkMode(isDark);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // The user requested "ctr+shift+T+B". This is interpreted as Ctrl+Shift+B.
+      if (event.ctrlKey && event.shiftKey && event.key.toUpperCase() === 'B') {
+        event.preventDefault();
+        setShowAdvancedFeatures(prev => !prev);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   useEffect(() => {
@@ -165,8 +182,12 @@ const App = () => {
           <NavItem to="/tree">Family Tree</NavItem>
           <NavItem to="/timeline">Family Timeline</NavItem>
           <NavItem to="/reports">Reports & Stats</NavItem>
-          <NavItem to="/merge">Merge Trees</NavItem>
-          <NavItem to="/split">Split Tree</NavItem>
+          {showAdvancedFeatures && (
+            <>
+              <NavItem to="/merge">Merge Trees</NavItem>
+              <NavItem to="/split">Split Tree</NavItem>
+            </>
+          )}
       </nav>
 
       <div className="border-l border-gray-200 dark:border-gray-700 h-6 mx-2"></div>
@@ -258,8 +279,12 @@ const App = () => {
                            <NavLink to="/tree" onClick={() => setIsMenuOpen(false)} className={({isActive}) => `px-4 py-2 rounded-md font-medium ${isActive ? "bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300" : "hover:bg-gray-100 dark:hover:bg-gray-700"}`}>Family Tree</NavLink>
                            <NavLink to="/timeline" onClick={() => setIsMenuOpen(false)} className={({isActive}) => `px-4 py-2 rounded-md font-medium ${isActive ? "bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300" : "hover:bg-gray-100 dark:hover:bg-gray-700"}`}>Family Timeline</NavLink>
                            <NavLink to="/reports" onClick={() => setIsMenuOpen(false)} className={({isActive}) => `px-4 py-2 rounded-md font-medium ${isActive ? "bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300" : "hover:bg-gray-100 dark:hover:bg-gray-700"}`}>Reports & Stats</NavLink>
-                           <NavLink to="/merge" onClick={() => setIsMenuOpen(false)} className={({isActive}) => `px-4 py-2 rounded-md font-medium ${isActive ? "bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300" : "hover:bg-gray-100 dark:hover:bg-gray-700"}`}>Merge Trees</NavLink>
-                           <NavLink to="/split" onClick={() => setIsMenuOpen(false)} className={({isActive}) => `px-4 py-2 rounded-md font-medium ${isActive ? "bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300" : "hover:bg-gray-100 dark:hover:bg-gray-700"}`}>Split Tree</NavLink>
+                           {showAdvancedFeatures && (
+                            <>
+                                <NavLink to="/merge" onClick={() => setIsMenuOpen(false)} className={({isActive}) => `px-4 py-2 rounded-md font-medium ${isActive ? "bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300" : "hover:bg-gray-100 dark:hover:bg-gray-700"}`}>Merge Trees</NavLink>
+                                <NavLink to="/split" onClick={() => setIsMenuOpen(false)} className={({isActive}) => `px-4 py-2 rounded-md font-medium ${isActive ? "bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300" : "hover:bg-gray-100 dark:hover:bg-gray-700"}`}>Split Tree</NavLink>
+                            </>
+                           )}
                         </nav>
                         
                         <div className="flex flex-col space-y-2 border-t dark:border-gray-700 pt-4">
