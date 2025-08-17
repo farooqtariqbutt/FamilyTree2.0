@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Person, Marriage } from '../types.ts';
 import { Gender, MarriageStatus } from '../types.ts';
 import { useFamilyTreeContext } from '../hooks/useFamilyTree.ts';
@@ -27,6 +27,9 @@ export default function PersonForm({ isOpen, onClose, personToEdit, newPersonTem
   const [editingImageSrc, setEditingImageSrc] = useState<string | null>(null);
   const [imageFilesToProcess, setImageFilesToProcess] = useState<File[]>([]);
 
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
   const initialFormState = {
     title: '',
     firstName: '',
@@ -44,18 +47,23 @@ export default function PersonForm({ isOpen, onClose, personToEdit, newPersonTem
     } else {
       setFormData({ ...initialFormState, ...(newPersonTemplate || {}) });
     }
-    // Reset spouse ID on form open/close
+    // Reset spouse ID and error on form open/close
     setNewSpouseId('');
+    setFormError(null);
   }, [personToEdit, newPersonTemplate, isOpen]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const target = e.target;
     const name = target.name;
     
-    if (target instanceof HTMLInputElement && target.type === 'checkbox') {
-        setFormData(prev => ({ ...prev, [name]: target.checked }));
-    } else {
-        setFormData(prev => ({ ...prev, [name]: target.value }));
+    const value = (target instanceof HTMLInputElement && target.type === 'checkbox') ? target.checked : target.value;
+    setFormData(prev => ({ ...prev, [name]: value }));
+
+    if (formError && (name === 'firstName' || name === 'nickName')) {
+        const otherFieldName = name === 'firstName' ? 'nickName' : 'firstName';
+        if (value || formData[otherFieldName]) {
+            setFormError(null);
+        }
     }
   };
 
@@ -160,10 +168,15 @@ export default function PersonForm({ isOpen, onClose, personToEdit, newPersonTem
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.firstName) {
-      alert('Name is required.');
+    if (!formData.firstName && !formData.nickName) {
+      setFormError('Either a Name or a Nick Name is required.');
+      if (nameInputRef.current) {
+        nameInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        nameInputRef.current.focus({ preventScroll: true });
+      }
       return;
     }
+    setFormError(null); // Clear error on successful submit
     if (personToEdit) {
       updatePerson(personToEdit.id, formData);
     } else {
@@ -214,12 +227,20 @@ export default function PersonForm({ isOpen, onClose, personToEdit, newPersonTem
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Info */}
         <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Personal Information</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Personal Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input label="Title" name="title" value={formData.title || ''} onChange={handleChange} />
-                <Input label={<>Name<span className="text-red-500 ml-1">*</span></>} name="firstName" value={formData.firstName || ''} onChange={handleChange} required />
-                <Input label="Nick Name" name="nickName" value={formData.nickName || ''} onChange={handleChange} />
                 <Input label="Family Cast" name="familyCast" value={formData.familyCast || ''} onChange={handleChange} />
+                <div className="md:col-span-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <Input ref={nameInputRef} label={<>Name<span className="text-red-500 ml-1">*</span></>} name="firstName" value={formData.firstName || ''} onChange={handleChange} />
+                       <Input label={<>Nick Name<span className="text-red-500 ml-1">*</span></>} name="nickName" value={formData.nickName || ''} onChange={handleChange} />
+                    </div>
+                    {formError && <p className="text-sm text-red-500 mt-2 font-semibold">{formError}</p>}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <span className="text-red-500">*</span> At least one of these fields is required to save.
+                    </p>
+                </div>
             </div>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <Select label="Gender" name="gender" value={formData.gender || ''} onChange={handleChange} className={genderClass}>
