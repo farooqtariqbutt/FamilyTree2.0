@@ -59,9 +59,12 @@ const SplitTreeView = () => {
     const filteredPeople = useMemo(() => {
         if (!sourceTree) return [];
         if (!searchTerm) return sourceTree.people;
-        return sourceTree.people.filter(p =>
-            getFullName(p).toLowerCase().includes(searchTerm.toLowerCase())
-        );
+        return sourceTree.people.filter(p => {
+            const term = searchTerm.toLowerCase();
+            const fullName = getFullName(p).toLowerCase();
+            const nickName = p.nickName?.toLowerCase() || '';
+            return fullName.includes(term) || nickName.includes(term);
+        });
     }, [sourceTree, searchTerm]);
 
     return (
