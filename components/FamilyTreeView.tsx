@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
-import type { Person } from '../../types.ts';
-import { Gender } from '../../types.ts';
+import type { Person } from '../types.ts';
+import { Gender } from '../types.ts';
 import { useFamilyTreeContext } from '../hooks/useFamilyTree.ts';
 import { MaleSymbolIcon, FemaleSymbolIcon, UserIcon, PlusIcon, MinusIcon, PrintIcon, SpinnerIcon, ArrowUpIcon, ArrowDownIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon, LinkIcon } from './ui/Icons.tsx';
 import Button from './ui/Button.tsx';
