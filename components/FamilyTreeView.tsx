@@ -561,8 +561,20 @@ export const FamilyTreeView: React.FC<{ openPersonForm: (p?: Person, template?: 
     const handleEdit = useCallback((person: Person) => openPersonForm(person), [openPersonForm]);
     
     const handleAddChild = useCallback((parent1Id: string, parent2Id: string) => {
-        openPersonForm(undefined, { parentIds: [parent1Id, parent2Id] });
-    }, [openPersonForm]);
+        const p1 = getPersonById(parent1Id);
+        const p2 = getPersonById(parent2Id);
+
+        if (!p1 || !p2) {
+            // Fallback or handle error if persons not found
+            openPersonForm(undefined, { parentIds: [parent1Id, parent2Id] });
+            return;
+        }
+
+        const fatherId = p1.gender === Gender.Male ? p1.id : (p2.gender === Gender.Male ? p2.id : '');
+        const motherId = p1.gender === Gender.Female ? p1.id : (p2.gender === Gender.Female ? p2.id : '');
+
+        openPersonForm(undefined, { parentIds: [fatherId, motherId] });
+    }, [openPersonForm, getPersonById]);
 
     const handleToggleAncestors = useCallback((person: Person) => {
         setAncestorsVisibleFor(prev => {
