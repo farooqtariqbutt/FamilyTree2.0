@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useLayoutEffect } from 'react';
+import React, { useState, useRef, useLayoutEffect, useCallback } from 'react';
 import { Person, Gender } from '../types.ts';
 import { useFamilyTreeContext } from '../hooks/useFamilyTree.ts';
 import Button from './ui/Button.tsx';
@@ -8,8 +8,18 @@ import { generatePdf } from '../utils/pdfUtils.ts';
 import SearchableSelect from './ui/SearchableSelect.tsx';
 import { getFullName } from '../utils/personUtils.ts';
 import Tooltip from './ui/Tooltip.tsx';
+import ParentViewToggle from './ui/ParentViewToggle.tsx';
 
-const PedigreeNode = ({ person, lineage }: { person?: Person; lineage?: 'paternal' | 'maternal' }) => {
+type ParentalViewMap = Map<string, 'adoptive' | 'biological'>;
+
+interface PedigreeNodeProps {
+    person?: Person;
+    lineage?: 'paternal' | 'maternal';
+    parentalViewMap: ParentalViewMap;
+    onToggleParentalView: (personId: string) => void;
+}
+
+const PedigreeNode: React.FC<PedigreeNodeProps> = ({ person, lineage, parentalViewMap, onToggleParentalView }) => {
     const nameBoxSize = 'w-32';
 
     if (!person) {
@@ -46,7 +56,12 @@ const PedigreeNode = ({ person, lineage }: { person?: Person; lineage?: 'paterna
                     <UserIcon className="w-10 h-10 text-gray-400 dark:text-gray-500" />
                 )}
             </div>
-            <div className={`${nameBoxSize} mt-2 p-1 border rounded text-center shadow ${dataBoxGenderClass}`}>
+            <div className={`${nameBoxSize} mt-2 p-1 border rounded text-center shadow ${dataBoxGenderClass} relative`}>
+                <ParentViewToggle
+                    person={person}
+                    currentView={parentalViewMap.get(person.id) || 'adoptive'}
+                    onToggle={() => onToggleParentalView(person.id)}
+                />
                 <p className="font-semibold text-sm whitespace-normal">{getFullName(person)}</p>
                 <p className="text-xs text-gray-500">{person.birthDate || 'N/A'}</p>
             </div>
@@ -54,22 +69,30 @@ const PedigreeNode = ({ person, lineage }: { person?: Person; lineage?: 'paterna
     );
 };
 
-const PedigreeBranch = ({ person, getPersonById, generation, lineage }: { person?: Person; getPersonById: (id: string) => Person | undefined; generation: number; lineage?: 'paternal' | 'maternal' }) => {
-    // Base case for recursion: if we have reached the max depth, we don't render parents.
-    // We just render the node for the current person/placeholder.
+interface PedigreeBranchProps {
+    person?: Person;
+    getPersonById: (id: string) => Person | undefined;
+    generation: number;
+    lineage?: 'paternal' | 'maternal';
+    parentalViewMap: ParentalViewMap;
+    onToggleParentalView: (personId: string) => void;
+}
+
+const PedigreeBranch: React.FC<PedigreeBranchProps> = ({ person, getPersonById, generation, lineage, parentalViewMap, onToggleParentalView }) => {
     if (generation <= 1) {
-        return <PedigreeNode person={person} lineage={lineage} />;
+        return <PedigreeNode person={person} lineage={lineage} parentalViewMap={parentalViewMap} onToggleParentalView={onToggleParentalView} />;
     }
 
-    // Determine parents of the current person. If no person, parents are unknown.
     let father: Person | undefined = undefined;
     let mother: Person | undefined = undefined;
     if (person) {
-        const parents = (person.parentIds || []).map(id => getPersonById(id)).filter((p): p is Person => !!p);
+        const currentView = parentalViewMap.get(person.id) || 'adoptive';
+        const parentIdsToUse = (currentView === 'biological' && person.isAdopted) ? person.biologicalParentIds : person.parentIds;
+        const parents = (parentIdsToUse || []).map(id => getPersonById(id)).filter((p): p is Person => !!p);
+        
         father = parents.find(p => p.gender === Gender.Male);
         mother = parents.find(p => p.gender === Gender.Female);
         
-        // Handle cases where gender isn't set or is the same, assign remaining parents structurally
         const remainingParents = parents.filter(p => p.id !== father?.id && p.id !== mother?.id);
         if (!father && remainingParents.length > 0) {
             father = remainingParents.shift();
@@ -84,32 +107,27 @@ const PedigreeBranch = ({ person, getPersonById, generation, lineage }: { person
 
     return (
         <div className="inline-flex flex-col items-center">
-            {/* Parent branches - ALWAYS RENDER a branch if not at max depth */}
+            {/* Parent branches */}
             <div className="flex items-start">
-                <PedigreeBranch person={father} getPersonById={getPersonById} generation={generation - 1} lineage={fatherLineage} />
+                <PedigreeBranch person={father} getPersonById={getPersonById} generation={generation - 1} lineage={fatherLineage} parentalViewMap={parentalViewMap} onToggleParentalView={onToggleParentalView} />
                 <div className="w-8 md:w-16"></div>
-                <PedigreeBranch person={mother} getPersonById={getPersonById} generation={generation - 1} lineage={motherLineage} />
+                <PedigreeBranch person={mother} getPersonById={getPersonById} generation={generation - 1} lineage={motherLineage} parentalViewMap={parentalViewMap} onToggleParentalView={onToggleParentalView} />
             </div>
             
             {/* Connecting lines container */}
             <div className="relative w-full h-8">
-                {/* We only draw lines if there is a person below to connect to */}
                 {person && (
                     <>
-                        {/* Vertical line from Father to midpoint */}
                         {father && <div className="absolute top-0 left-1/4 w-px h-1/2 bg-gray-400 dark:bg-gray-500"></div>}
-                        {/* Vertical line from Mother to midpoint */}
                         {mother && <div className="absolute top-0 right-1/4 w-px h-1/2 bg-gray-400 dark:bg-gray-500"></div>}
-                        {/* Horizontal line at midpoint, only if there's at least one parent to connect to */}
                         {(father || mother) && <div className="absolute top-1/2 left-1/4 w-1/2 h-px bg-gray-400 dark:bg-gray-500"></div>}
-                        {/* Vertical line from midpoint down to the child (current person) */}
                         {(father || mother) && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 w-px h-1/2 bg-gray-400 dark:bg-gray-500"></div>}
                     </>
                 )}
             </div>
 
-            {/* Self Node - always render to show the current person or a placeholder */}
-            <PedigreeNode person={person} lineage={lineage} />
+            {/* Self Node */}
+            <PedigreeNode person={person} lineage={lineage} parentalViewMap={parentalViewMap} onToggleParentalView={onToggleParentalView} />
         </div>
     );
 };
@@ -123,6 +141,16 @@ const WhoAmIView = () => {
     const [generations, setGenerations] = useState(2);
     const [zoom, setZoom] = useState(1);
     const [contentSize, setContentSize] = useState({ width: 0, height: 0 });
+    const [parentalViewMap, setParentalViewMap] = useState<ParentalViewMap>(new Map());
+
+    const handleToggleParentalView = useCallback((personId: string) => {
+        setParentalViewMap(prev => {
+            const newMap = new Map(prev);
+            const currentView = newMap.get(personId) || 'adoptive';
+            newMap.set(personId, currentView === 'adoptive' ? 'biological' : 'adoptive');
+            return newMap;
+        });
+    }, []);
 
     useLayoutEffect(() => {
         if (pedigreeReportRef.current) {
@@ -137,7 +165,7 @@ const WhoAmIView = () => {
             resizeObserver.observe(pedigreeReportRef.current);
             return () => resizeObserver.disconnect();
         }
-    }, [selectedPersonId, generations]); // Re-observe when content might change
+    }, [selectedPersonId, generations, parentalViewMap]); // Re-observe when content might change
 
     const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2));
     const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.3));
@@ -260,7 +288,7 @@ const WhoAmIView = () => {
                             }}
                         >
                             <div ref={pedigreeReportRef} className="p-4 inline-block">
-                                <PedigreeBranch person={me} getPersonById={getPersonById} generation={generations} />
+                                <PedigreeBranch person={me} getPersonById={getPersonById} generation={generations} parentalViewMap={parentalViewMap} onToggleParentalView={handleToggleParentalView} />
                             </div>
                         </div>
                     </div>
