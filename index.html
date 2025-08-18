@@ -38,7 +38,22 @@
       }
     </script>
     <style>
-      /* Styles for PDF generation will be handled by html2canvas, so @media print is no longer needed */
+      /* Overrides browser-default autofill styles which can clash with the theme. */
+      input:-webkit-autofill,
+      input:-webkit-autofill:hover,
+      input:-webkit-autofill:focus,
+      input:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 30px white inset !important;
+          box-shadow: 0 0 0 30px white inset !important;
+      }
+      
+      html.dark input:-webkit-autofill,
+      html.dark input:-webkit-autofill:hover,
+      html.dark input:-webkit-autofill:focus,
+      html.dark input:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 30px #374151 inset !important; /* dark:bg-gray-700 */
+          box-shadow: 0 0 0 30px #374151 inset !important;
+      }
     </style>
   <script type="importmap">
 {
@@ -70,12 +85,10 @@
       }
     };
   </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 antialiased">
     <div id="root"></div>
   <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
   <script type="text/babel" data-presets="react,typescript" data-type="module" src="/index.tsx"></script>
-<script type="module" src="/index.tsx"></script>
 </body>
 </html>
