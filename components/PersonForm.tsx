@@ -37,6 +37,7 @@ export default function PersonForm({ isOpen, onClose, personToEdit, newPersonTem
     familyCast: '',
     gender: Gender.Male,
     parentIds: [],
+    biologicalParentIds: [],
     marriages: [],
     photos: [],
   };
@@ -55,8 +56,23 @@ export default function PersonForm({ isOpen, onClose, personToEdit, newPersonTem
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const target = e.target;
     const name = target.name;
-    
-    const value = (target instanceof HTMLInputElement && target.type === 'checkbox') ? target.checked : target.value;
+
+    if (target instanceof HTMLInputElement && target.type === 'checkbox') {
+        const checked = target.checked;
+        if (name === 'isAdopted') {
+            if (!checked) {
+                setFormData(prev => {
+                    const { biologicalParentIds, ...rest } = prev;
+                    return { ...rest, isAdopted: checked };
+                });
+            } else {
+                setFormData(prev => ({ ...prev, isAdopted: checked }));
+            }
+        }
+        return;
+    }
+
+    const value = target.value;
     setFormData(prev => ({ ...prev, [name]: value }));
 
     if (formError && (name === 'firstName' || name === 'nickName')) {
@@ -75,6 +91,16 @@ export default function PersonForm({ isOpen, onClose, personToEdit, newPersonTem
         return;
     }
     setFormData(prev => ({ ...prev, parentIds: newParentIds }));
+  };
+
+  const handleBiologicalParentChange = (value: string, parentIndex: number) => {
+    const newParentIds = [...(formData.biologicalParentIds || [])];
+    newParentIds[parentIndex] = value;
+    if (newParentIds[0] && newParentIds[0] === newParentIds[1]) {
+        alert("A person cannot have the same biological parent listed twice.");
+        return;
+    }
+    setFormData(prev => ({ ...prev, biologicalParentIds: newParentIds }));
   };
 
   const handleMarriageChange = (index: number, field: keyof Marriage, value: string) => {
@@ -336,7 +362,7 @@ export default function PersonForm({ isOpen, onClose, personToEdit, newPersonTem
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Family Relationships</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <SearchableSelect
-                    label="Father"
+                    label={formData.isAdopted ? 'Adoptive Father' : 'Father'}
                     options={potentialFathers}
                     value={formData.parentIds?.[0] || ''}
                     onChange={(value) => handleParentChange(value, 0)}
@@ -344,7 +370,7 @@ export default function PersonForm({ isOpen, onClose, personToEdit, newPersonTem
                     placeholder="Unknown"
                 />
                 <SearchableSelect
-                    label="Mother"
+                    label={formData.isAdopted ? 'Adoptive Mother' : 'Mother'}
                     options={potentialMothers}
                     value={formData.parentIds?.[1] || ''}
                     onChange={(value) => handleParentChange(value, 1)}
@@ -410,6 +436,29 @@ export default function PersonForm({ isOpen, onClose, personToEdit, newPersonTem
                     This person is adopted
                 </label>
             </div>
+            {formData.isAdopted && (
+                <div className="mt-4 p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg animate-fadeIn">
+                    <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-2">Biological Parents (if known)</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <SearchableSelect
+                            label="Biological Father"
+                            options={potentialFathers}
+                            value={formData.biologicalParentIds?.[0] || ''}
+                            onChange={(value) => handleBiologicalParentChange(value, 0)}
+                            className="bg-male dark:bg-male-dark border-male-border"
+                            placeholder="Unknown"
+                        />
+                        <SearchableSelect
+                            label="Biological Mother"
+                            options={potentialMothers}
+                            value={formData.biologicalParentIds?.[1] || ''}
+                            onChange={(value) => handleBiologicalParentChange(value, 1)}
+                            className="bg-female dark:bg-female-dark border-female-border"
+                            placeholder="Unknown"
+                        />
+                    </div>
+                </div>
+            )}
         </div>
 
         {/* Action Buttons */}
