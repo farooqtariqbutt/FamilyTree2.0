@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
-import type { Person } from '../types.ts';
-import { Gender } from '../types.ts';
+import type { Person } from '../../types.ts';
+import { Gender } from '../../types.ts';
 import { useFamilyTreeContext } from '../hooks/useFamilyTree.ts';
 import { MaleSymbolIcon, FemaleSymbolIcon, UserIcon, PlusIcon, MinusIcon, PrintIcon, SpinnerIcon, ArrowUpIcon, ArrowDownIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon, LinkIcon } from './ui/Icons.tsx';
 import Button from './ui/Button.tsx';
@@ -619,16 +619,16 @@ export const FamilyTreeView: React.FC<{ openPersonForm: (p?: Person, template?: 
     const handleAddChild = useCallback((parent1Id: string, parent2Id: string) => {
         const p1 = getPersonById(parent1Id);
         const p2 = getPersonById(parent2Id);
-
+    
         if (!p1 || !p2) {
             // Fallback or handle error if persons not found
             openPersonForm(undefined, { parentIds: [parent1Id, parent2Id] });
             return;
         }
-
+    
         const fatherId = p1.gender === Gender.Male ? p1.id : (p2.gender === Gender.Male ? p2.id : '');
         const motherId = p1.gender === Gender.Female ? p1.id : (p2.gender === Gender.Female ? p2.id : '');
-
+    
         openPersonForm(undefined, { parentIds: [fatherId, motherId] });
     }, [openPersonForm, getPersonById]);
 
