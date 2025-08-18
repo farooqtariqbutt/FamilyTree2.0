@@ -232,21 +232,20 @@ export default function PersonForm({ isOpen, onClose, personToEdit, newPersonTem
     });
   }, [people, personToEdit, formData.gender, formData.marriages]);
   
-  // The color of the spouse dropdown should reflect the gender of the people *in* the list.
-  const spouseListGender = potentialSpouses.length > 0 ? potentialSpouses[0].gender : null;
+  // The color of the spouse dropdown reflects the gender of the person being selected.
   const spouseSelectClass =
-    spouseListGender === Gender.Male
-      ? 'bg-male dark:bg-male-dark border-male-border'
-      : spouseListGender === Gender.Female
-      ? 'bg-female dark:bg-female-dark border-female-border'
-      : '';
+    formData.gender === Gender.Male
+      ? 'bg-female dark:bg-female-dark border-female-border' // A Male selects a Female spouse (pink box)
+      : formData.gender === Gender.Female
+      ? 'bg-male dark:bg-male-dark border-male-border' // A Female selects a Male spouse (blue box)
+      : ''; // Neutral for other genders
 
   const genderClass =
     formData.gender === Gender.Male
       ? 'bg-male dark:bg-male-dark border-male-border'
       : formData.gender === Gender.Female
       ? 'bg-female dark:bg-female-dark border-female-border'
-      : '';
+      : 'bg-gray-200 dark:bg-gray-700 border-gray-500';
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={personToEdit ? `Edit ${getFullName(formData)}` : 'Add New Person'}>
