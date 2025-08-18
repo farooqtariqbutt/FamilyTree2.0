@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
-import type { Person } from '../types.ts';
-import { Gender } from '../types.ts';
+import type { Person } from '../../types.ts';
+import { Gender } from '../../types.ts';
 import { useFamilyTreeContext } from '../hooks/useFamilyTree.ts';
 import { MaleSymbolIcon, FemaleSymbolIcon, UserIcon, PlusIcon, MinusIcon, PrintIcon, SpinnerIcon, ArrowUpIcon, ArrowDownIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon, LinkIcon } from './ui/Icons.tsx';
 import Button from './ui/Button.tsx';
@@ -11,6 +11,7 @@ import SearchableSelect from './ui/SearchableSelect.tsx';
 import { getFullName } from '../utils/personUtils.ts';
 import { getAllBloodRelativesIds, findRelationship, findAllRelationships, type Relationship } from '../utils/relationshipUtils.ts';
 import RelationshipPathModal from './RelationshipPathModal.tsx';
+import ParentViewToggle from './ui/ParentViewToggle.tsx';
 
 // Helper function to get siblings
 const getSiblings = (person: Person, allPeople: Person[]): Person[] => {
@@ -50,14 +51,20 @@ const NodeCard: React.FC<{
   isFocalChild?: boolean;
   bloodRelativesIds: Set<string>;
   relationshipDescription: string | null;
-}> = React.memo(({ person, isSpouse = false, onEdit, onToggleAncestors, onNavigateToFamily, onToggleChildren, onToggleSiblings, onShowRelationshipPath, childrenVisible, siblingsVisible, ancestorsVisible, hasChildrenToShow, isChildCard = false, isSiblingCard = false, isFocalChild = false, bloodRelativesIds, relationshipDescription }) => {
+  parentalView: 'adoptive' | 'biological';
+  onToggleParentalView: () => void;
+}> = React.memo(({ person, isSpouse = false, onEdit, onToggleAncestors, onNavigateToFamily, onToggleChildren, onToggleSiblings, onShowRelationshipPath, childrenVisible, siblingsVisible, ancestorsVisible, hasChildrenToShow, isChildCard = false, isSiblingCard = false, isFocalChild = false, bloodRelativesIds, relationshipDescription, parentalView, onToggleParentalView }) => {
     const genderClass = person.gender === Gender.Male
         ? 'border-male-border bg-male dark:bg-male-dark'
         : person.gender === Gender.Female
         ? 'border-female-border bg-female dark:bg-female-dark'
         : 'border-gray-500';
 
-    const hasParents = person.parentIds?.some(id => !!id);
+    const hasParents = useMemo(() => {
+        const parentIdsToUse = (parentalView === 'biological' && person.isAdopted) ? person.biologicalParentIds : person.parentIds;
+        return parentIdsToUse?.some(id => !!id);
+    }, [person, parentalView]);
+
     const { people } = useFamilyTreeContext();
     const hasSiblings = getSiblings(person, people).length > 0;
 
@@ -74,9 +81,8 @@ const NodeCard: React.FC<{
 
     return (
         <div id={`person-card-${person.id}`} className="relative mt-2 mx-2">
-            <div
-                className={`p-3 rounded-lg shadow-md border-2 ${genderClass} w-64 flex-shrink-0 flex space-x-3 items-start`}
-            >
+            <div className={`p-3 rounded-lg shadow-md border-2 ${genderClass} w-64 flex-shrink-0 flex space-x-3 items-start relative`}>
+                
                 <div className="flex-shrink-0 w-20 h-24 rounded-md flex items-center justify-center bg-gray-200 dark:bg-gray-700 overflow-hidden">
                     {person.photos?.[0] ? <img src={person.photos[0]} alt={`${person.firstName}`} className="w-full h-full object-cover" />
                         : (
@@ -95,6 +101,11 @@ const NodeCard: React.FC<{
                     </div>
                      {relationshipDescription && <div className="mt-2 pt-1 border-t border-gray-300 dark:border-gray-600/50 text-gray-600 dark:text-gray-400 font-semibold italic text-[11px]">{relationshipDescription}</div>}
                 </div>
+                <ParentViewToggle 
+                    person={person}
+                    currentView={parentalView}
+                    onToggle={onToggleParentalView}
+                />
             </div>
 
             {hasMultipleRels && (
@@ -183,11 +194,13 @@ interface FamilyNodeProps {
     isFocalChildNode?: boolean;
     bloodRelativesIds: Set<string>;
     relationshipDescriptions: Map<string, string>;
+    parentalViewMap: Map<string, 'adoptive' | 'biological'>;
+    onToggleParentalView: (personId: string) => void;
 }
 
 const FamilyNode: React.FC<FamilyNodeProps> = React.memo(({
     personId, onEdit, onToggleAncestors, onNavigateToFamily, onToggleChildren, onSwitchSpouse, onToggleSiblings, onShowRelationshipPath, onAddChild,
-    processedIds, allPeople, siblingsVisibleFor, childrenVisibleFor, ancestorsVisibleFor, activeSpouseIndices, isChildCard = false, isFocalChildNode = false, bloodRelativesIds, relationshipDescriptions
+    processedIds, allPeople, siblingsVisibleFor, childrenVisibleFor, ancestorsVisibleFor, activeSpouseIndices, isChildCard = false, isFocalChildNode = false, bloodRelativesIds, relationshipDescriptions, parentalViewMap, onToggleParentalView
 }) => {
     const { getPersonById } = useFamilyTreeContext();
     const person = getPersonById(personId);
@@ -202,28 +215,30 @@ const FamilyNode: React.FC<FamilyNodeProps> = React.memo(({
     const shouldShowSiblings = siblingsVisibleFor === person.id;
     const siblings = shouldShowSiblings ? getSiblings(person, allPeople) : [];
 
-    const displayableChildren = (primaryPerson.childrenIds || [])
-        ?.map(id => getPersonById(id))
-        .filter((c): c is Person => !!c)
-        .filter(child => {
-            const childParents = new Set(child.parentIds || []);
-            if (!childParents.has(primaryPerson.id)) {
-                return false;
-            }
-            if (spouse) {
-                return childParents.has(spouse.id);
-            }
-            const otherParentId = child.parentIds?.find(pId => pId !== primaryPerson.id);
-            if(otherParentId) {
-                const otherParent = getPersonById(otherParentId);
-                if (otherParent && primaryPerson.marriages?.some(m => m.spouseId === otherParentId)) {
-                    return false;
-                }
-            }
-            return true;
-        })
-        .sort((a, b) => (a.birthDate || '').localeCompare(b.birthDate || '')) || [];
+    const displayableChildren = useMemo(() => {
+        const childrenMap = new Map<string, Person>();
+        if (!primaryPerson) return [];
+        
+        // An array of the couple's IDs, sorted for consistent comparison. Works for single parents too.
+        const coupleIdArray = spouse ? [primaryPerson.id, spouse.id].sort() : [primaryPerson.id];
     
+        allPeople.forEach(p => {
+            // Check legal children. Their parentIds must match the couple exactly.
+            const legalParentIds = (p.parentIds || []).sort();
+            if (JSON.stringify(legalParentIds) === JSON.stringify(coupleIdArray)) {
+                childrenMap.set(p.id, p);
+            }
+    
+            // Check biological children. Their biologicalParentIds must match the couple exactly.
+            const biologicalParentIds = (p.biologicalParentIds || []).sort();
+            if (JSON.stringify(biologicalParentIds) === JSON.stringify(coupleIdArray)) {
+                childrenMap.set(p.id, p);
+            }
+        });
+    
+        return Array.from(childrenMap.values()).sort((a, b) => (a.birthDate || '').localeCompare(b.birthDate || ''));
+    }, [primaryPerson, spouse, allPeople]);
+
     const hasChildrenToShow = displayableChildren.length > 0;
     const areChildrenExplicitlyToggled = childrenVisibleFor.has(primaryPerson.id);
     
@@ -234,7 +249,9 @@ const FamilyNode: React.FC<FamilyNodeProps> = React.memo(({
         : (navigatedUpFromChild ? [navigatedUpFromChild] : []);
 
     const areAncestorsVisible = ancestorsVisibleFor.has(person.id);
-    const parentId = person.parentIds?.find(id => !!id);
+    const currentView = parentalViewMap.get(person.id) || 'adoptive';
+    const parentIdsToUse = (currentView === 'biological' && person.isAdopted) ? person.biologicalParentIds : person.parentIds;
+    const parentId = parentIdsToUse?.find(id => !!id);
     const parent = parentId ? getPersonById(parentId) : undefined;
 
     const newProcessedIds = new Set(processedIds);
@@ -269,6 +286,8 @@ const FamilyNode: React.FC<FamilyNodeProps> = React.memo(({
                         isChildCard={false}
                         bloodRelativesIds={bloodRelativesIds}
                         relationshipDescriptions={relationshipDescriptions}
+                        parentalViewMap={parentalViewMap}
+                        onToggleParentalView={onToggleParentalView}
                     />
                     <div className="h-10 w-px bg-gray-400 dark:bg-gray-600"></div>
                 </div>
@@ -297,6 +316,8 @@ const FamilyNode: React.FC<FamilyNodeProps> = React.memo(({
                                     isSiblingCard={true}
                                     bloodRelativesIds={bloodRelativesIds}
                                     relationshipDescription={relationshipDescriptions.get(sib.id) || null}
+                                    parentalView={parentalViewMap.get(sib.id) || 'adoptive'}
+                                    onToggleParentalView={() => onToggleParentalView(sib.id)}
                                 />
                             ))}
                         </div>
@@ -323,6 +344,8 @@ const FamilyNode: React.FC<FamilyNodeProps> = React.memo(({
                                 isFocalChild={isFocalChildNode}
                                 bloodRelativesIds={bloodRelativesIds}
                                 relationshipDescription={relationshipDescriptions.get(primaryPerson.id) || null}
+                                parentalView={parentalViewMap.get(primaryPerson.id) || 'adoptive'}
+                                onToggleParentalView={() => onToggleParentalView(primaryPerson.id)}
                             />
                             {spouse && (
                                 <>
@@ -361,6 +384,8 @@ const FamilyNode: React.FC<FamilyNodeProps> = React.memo(({
                                         isChildCard={isChildCard}
                                         bloodRelativesIds={bloodRelativesIds}
                                         relationshipDescription={relationshipDescriptions.get(spouse.id) || null}
+                                        parentalView={parentalViewMap.get(spouse.id) || 'adoptive'}
+                                        onToggleParentalView={() => onToggleParentalView(spouse.id)}
                                     />
                                 </>
                             )}
@@ -385,10 +410,19 @@ const FamilyNode: React.FC<FamilyNodeProps> = React.memo(({
                             
                             <div className="flex justify-center">
                                 <div className="flex flex-row items-start">
-                                    {childrenToRender.map((child, index) => (
+                                    {childrenToRender.map((child, index) => {
+                                        const coupleIdArray = spouse ? [primaryPerson.id, spouse.id].sort() : [primaryPerson.id];
+                                        const childLegalParentIds = (child.parentIds || []).sort();
+                                        const isLegallyTheirChild = JSON.stringify(childLegalParentIds) === JSON.stringify(coupleIdArray);
+                                        const isAdoptiveConnection = child.isAdopted && isLegallyTheirChild;
+
+                                        const verticalLineClass = isAdoptiveConnection
+                                            ? "absolute bottom-0 left-1/2 -translate-x-1/2 h-5 w-0 border-l-2 border-dashed border-gray-400 dark:border-gray-600"
+                                            : "absolute bottom-0 left-1/2 -translate-x-1/2 h-5 w-px bg-gray-400 dark:bg-gray-600";
+                                        return (
                                         <div key={child.id} className="relative flex flex-col items-center px-4">
                                             <div className="absolute bottom-full left-0 right-0 h-10">
-                                                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-5 w-px bg-gray-400 dark:bg-gray-600"></div>
+                                                <div className={verticalLineClass}></div>
                                                  {childrenToRender.length > 1 && (
                                                     <div className={`absolute bottom-5 h-px bg-gray-400 dark:bg-gray-600 ${
                                                         index === 0 ? 'left-1/2 w-1/2' : index === childrenToRender.length - 1 ? 'right-1/2 w-1/2' : 'w-full'
@@ -415,9 +449,11 @@ const FamilyNode: React.FC<FamilyNodeProps> = React.memo(({
                                                 isFocalChildNode={navigatedUpFromChild?.id === child.id}
                                                 bloodRelativesIds={bloodRelativesIds}
                                                 relationshipDescriptions={relationshipDescriptions}
+                                                parentalViewMap={parentalViewMap}
+                                                onToggleParentalView={onToggleParentalView}
                                             />
                                         </div>
-                                    ))}
+                                    )})}
                                 </div>
                             </div>
                         </div>
@@ -442,6 +478,30 @@ export const FamilyTreeView: React.FC<{ openPersonForm: (p?: Person, template?: 
     const [ancestorsVisibleFor, setAncestorsVisibleFor] = useState<Set<string>>(new Set());
     const [activeSpouseIndices, setActiveSpouseIndices] = useState<Map<string, number>>(new Map());
     const [relationshipModalData, setRelationshipModalData] = useState<{ person1: Person, person2: Person, relationships: Relationship[] } | null>(null);
+    const [parentalViewMap, setParentalViewMap] = useState<Map<string, 'adoptive' | 'biological'>>(new Map());
+
+    const handleRootPersonChange = useCallback((personId: string) => {
+        setFocusedPersonId(personId);
+        setChildrenVisibleFor(new Set());
+        setSiblingsVisibleFor(null);
+        setAncestorsVisibleFor(new Set());
+    }, []);
+
+    const handleToggleParentalView = useCallback((personId: string) => {
+        // Set the person as the new root of the tree, which also resets visibility states.
+        handleRootPersonChange(personId);
+        
+        // Toggle which parental line to show.
+        setParentalViewMap(prev => {
+            const newMap = new Map(prev);
+            const currentView = newMap.get(personId) || 'adoptive';
+            newMap.set(personId, currentView === 'adoptive' ? 'biological' : 'adoptive');
+            return newMap;
+        });
+    
+        // After reset, explicitly show the ancestors for the new root.
+        setAncestorsVisibleFor(new Set([personId]));
+    }, [handleRootPersonChange]);
 
     const bloodRelativesIds = useMemo(() => {
         if (!focusedPersonId) return new Set<string>();
@@ -494,8 +554,11 @@ export const FamilyTreeView: React.FC<{ openPersonForm: (p?: Person, template?: 
         
         let finalRoot = renderRootPerson;
         let current = renderRootPerson;
-        while(ancestorsVisibleFor.has(current.id) && current.parentIds) {
-            const parent = current.parentIds.map(id => getPersonById(id)).find(p => p);
+        while(ancestorsVisibleFor.has(current.id)) {
+            const currentView = parentalViewMap.get(current.id) || 'adoptive';
+            const parentIdsToUse = (currentView === 'biological' && current.isAdopted) ? current.biologicalParentIds : current.parentIds;
+            const parent = parentIdsToUse?.map(id => getPersonById(id)).find(p => p);
+
             if (parent) {
                 finalRoot = parent;
                 current = parent;
@@ -504,7 +567,7 @@ export const FamilyTreeView: React.FC<{ openPersonForm: (p?: Person, template?: 
             }
         }
         return finalRoot.id;
-    }, [focusedPersonId, getPersonById, ancestorsVisibleFor, childrenVisibleFor]);
+    }, [focusedPersonId, getPersonById, ancestorsVisibleFor, childrenVisibleFor, parentalViewMap]);
     
     useLayoutEffect(() => {
         if (treeContainerRef.current) {
@@ -550,13 +613,6 @@ export const FamilyTreeView: React.FC<{ openPersonForm: (p?: Person, template?: 
             scrollToCard(renderRootId);
         }
     }, [renderRootId]);
-
-    const handleRootPersonChange = (personId: string) => {
-        setFocusedPersonId(personId);
-        setChildrenVisibleFor(new Set());
-        setSiblingsVisibleFor(null);
-        setAncestorsVisibleFor(new Set());
-    };
 
     const handleEdit = useCallback((person: Person) => openPersonForm(person), [openPersonForm]);
     
@@ -616,7 +672,7 @@ export const FamilyTreeView: React.FC<{ openPersonForm: (p?: Person, template?: 
 
     const handleNavigateToFamily = useCallback((person: Person) => {
         handleRootPersonChange(person.id);
-    }, []);
+    }, [handleRootPersonChange]);
     
     const handleToggleSiblings = useCallback((person: Person) => {
         setSiblingsVisibleFor(prev => (prev === person.id ? null : person.id));
@@ -788,6 +844,8 @@ export const FamilyTreeView: React.FC<{ openPersonForm: (p?: Person, template?: 
                                         activeSpouseIndices={activeSpouseIndices}
                                         bloodRelativesIds={bloodRelativesIds}
                                         relationshipDescriptions={relationshipDescriptions}
+                                        parentalViewMap={parentalViewMap}
+                                        onToggleParentalView={handleToggleParentalView}
                                     />
                                 </div>
                             </div>
