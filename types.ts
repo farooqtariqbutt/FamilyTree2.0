@@ -40,7 +40,8 @@ export interface Person {
     notes?: string;
     mobileNumber?: string;
     email?: string;
-    parentIds?: string[]; // [fatherId, motherId]
+    parentIds?: string[]; // [fatherId, motherId] - adoptive/legal parents
+    biologicalParentIds?: string[]; // [bioFatherId, bioMotherId]
     marriages?: Marriage[];
     childrenIds?: string[];
     isAdopted?: boolean;
